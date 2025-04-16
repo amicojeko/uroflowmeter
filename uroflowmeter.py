@@ -21,7 +21,7 @@ df["flow_ml_s"] = np.gradient(df["weight_g"], df["time_s"])
 
 # === TRIM DATA TO ACTIVE FLOW PERIOD (with custom thresholds) ===
 START_FLOW_THRESHOLD = 0.6
-END_FLOW_THRESHOLD = 1.2
+END_FLOW_THRESHOLD = 0.6
 
 start_index = df.index[df["flow_ml_s"] > START_FLOW_THRESHOLD][0]
 end_index = df.index[df["flow_ml_s"] > END_FLOW_THRESHOLD][-1]
@@ -89,7 +89,8 @@ with PdfPages(pdf_path) as pdf:
     ax = fig2.add_subplot(111)
     ax.axis("off")
 
-    report = f"""
+    report = (
+    f"""
 Measured parameters:
 - Total voided volume: {total_volume:.1f} mL
 - Total duration: {total_duration:.1f} s
@@ -100,7 +101,12 @@ Measured parameters:
 - Number of interruptions: {len(pauses)}
 
 Detected interruptions:
-""" + "\n".join([f"  {i+1}. From {start:.2f} s to {end:.2f} s" for i, (start, end) in enumerate(pauses)])
+"""
+    + "\n".join([
+        f"  {i+1}. From {start:.2f} s to {end:.2f} s (duration: {end - start:.2f} s)"
+        for i, (start, end) in enumerate(pauses)
+    ])
+)
 
     ax.text(0, 1, report, va="top", fontsize=10, family="monospace")
     fig2.tight_layout()
