@@ -1,4 +1,4 @@
-# uroflow_analysis.py (2-page PDF version, English)
+# uroflowmeter.py (2-page PDF version, English)
 
 import pandas as pd
 import numpy as np
@@ -17,18 +17,20 @@ df["time_s"] = (df["timestamp"] - df["timestamp"].iloc[0]) / 1000.0
 # === CALCULATE FLOW ===
 df["flow_ml_s"] = np.gradient(df["weight_g"], df["time_s"])
 
+# === TRIM DATA TO ACTIVE FLOW PERIOD ===
+active_flow = df["flow_ml_s"] > FLOW_THRESHOLD
+start_index = df.index[active_flow][0]
+end_index = df.index[active_flow][-1]
+df = df.loc[start_index:end_index].reset_index(drop=True)
+df["time_s"] = df["time_s"] - df["time_s"].iloc[0]  # reset time from 0
+
+# === RECALCULATE PARAMETERS ===
 total_volume = df["weight_g"].max()
 total_duration = df["time_s"].iloc[-1] - df["time_s"].iloc[0]
 
-active_flow = df["flow_ml_s"] > FLOW_THRESHOLD
-start_flow_time = df.loc[active_flow, "time_s"].iloc[0]
-end_flow_time = df.loc[active_flow, "time_s"].iloc[-1]
-flow_duration = end_flow_time - start_flow_time
-emptying_duration = df["time_s"].iloc[-1] - df["time_s"].iloc[0]
-
 q_max = df["flow_ml_s"].max()
 time_qmax = df.loc[df["flow_ml_s"].idxmax(), "time_s"]
-q_avg = total_volume / flow_duration
+q_avg = total_volume / total_duration
 
 # === DETECT INTERRUPTIONS ===
 df["interruption"] = df["flow_ml_s"] < FLOW_THRESHOLD
@@ -58,7 +60,7 @@ with PdfPages(pdf_path) as pdf:
     ax1b.text(time_qmax, q_max + 1, f"Qmax = {q_max:.1f} mL/s", color="red", fontsize=8)
     ax1b.axhline(q_avg, color="cyan", linestyle="--")
     ax1b.text(df["time_s"].iloc[0], q_avg + 1, f"Qavg = {q_avg:.1f} mL/s", color="cyan", fontsize=8)
-    ax1.axvspan(start_flow_time, end_flow_time, color="yellow", alpha=0.2)
+    ax1.axvspan(df["time_s"].iloc[0], df["time_s"].iloc[-1], color="yellow", alpha=0.2)
     for p_start, p_end in pauses:
         ax1b.axvspan(p_start, p_end, color="gray", alpha=0.2)
     ax1.set_title("Complete uroflowgram with extended analysis")
@@ -82,8 +84,6 @@ with PdfPages(pdf_path) as pdf:
 Measured parameters:
 - Total voided volume: {total_volume:.1f} mL
 - Total duration: {total_duration:.1f} s
-- Emptying time: {emptying_duration:.1f} s
-- Active flow time: {flow_duration:.1f} s
 - Qmax: {q_max:.1f} mL/s (at {time_qmax:.1f} s)
 - Qavg: {q_avg:.1f} mL/s
 - Number of interruptions: {len(pauses)}
