@@ -19,10 +19,12 @@ df["time_s"] = (df["timestamp"] - df["timestamp"].iloc[0]) / 1000.0
 # === CALCULATE FLOW ===
 df["flow_ml_s"] = np.gradient(df["weight_g"], df["time_s"])
 
-# === TRIM DATA TO ACTIVE FLOW PERIOD ===
-active_flow = df["flow_ml_s"] > FLOW_THRESHOLD
-start_index = df.index[active_flow][0]
-end_index = df.index[active_flow][-1]
+# === TRIM DATA TO ACTIVE FLOW PERIOD (with custom thresholds) ===
+START_FLOW_THRESHOLD = 0.6
+END_FLOW_THRESHOLD = 1.2
+
+start_index = df.index[df["flow_ml_s"] > START_FLOW_THRESHOLD][0]
+end_index = df.index[df["flow_ml_s"] > END_FLOW_THRESHOLD][-1]
 df = df.loc[start_index:end_index].reset_index(drop=True)
 df["time_s"] = df["time_s"] - df["time_s"].iloc[0]  # reset time from 0
 
