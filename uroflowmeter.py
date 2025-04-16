@@ -1,14 +1,16 @@
-# uroflowmeter.py (2-page PDF version, English)
+# uroflowmeter.py (2-page PDF version, English with smoothing)
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from scipy.ndimage import gaussian_filter1d
 
 # === CONFIGURATION ===
 FILE_PATH = "data/sample_data.csv"  # CSV with '|' separator
-FLOW_THRESHOLD = 0.5  # mL/s
+FLOW_THRESHOLD = 0.6  # mL/s
 MIN_PAUSE_DURATION = 0.5  # seconds
+SMOOTHING_SIGMA = 0.35  # Standard deviation for Gaussian smoothing
 
 # === LOAD DATA ===
 df = pd.read_csv(FILE_PATH, sep="|", header=None, names=["timestamp", "weight_g"])
@@ -24,13 +26,8 @@ end_index = df.index[active_flow][-1]
 df = df.loc[start_index:end_index].reset_index(drop=True)
 df["time_s"] = df["time_s"] - df["time_s"].iloc[0]  # reset time from 0
 
-# === RECALCULATE PARAMETERS ===
-total_volume = df["weight_g"].max()
-total_duration = df["time_s"].iloc[-1] - df["time_s"].iloc[0]
-
-q_max = df["flow_ml_s"].max()
-time_qmax = df.loc[df["flow_ml_s"].idxmax(), "time_s"]
-q_avg = total_volume / total_duration
+# === APPLY SMOOTHING TO FLOW DATA ===
+df["flow_ml_s"] = gaussian_filter1d(df["flow_ml_s"], sigma=SMOOTHING_SIGMA)
 
 # === DETECT INTERRUPTIONS ===
 df["interruption"] = df["flow_ml_s"] < FLOW_THRESHOLD
@@ -47,6 +44,16 @@ for i in range(len(df)):
                 pauses.append((start, end))
             start = None
 
+# === RECALCULATE PARAMETERS ===
+total_volume = df["weight_g"].max()
+total_duration = df["time_s"].iloc[-1] - df["time_s"].iloc[0]
+emptying_time = df["time_s"].iloc[-1]
+active_flow_time = df[~df["interruption"]].shape[0] * (df["time_s"].iloc[-1] / len(df))
+
+q_max = df["flow_ml_s"].max()
+time_qmax = df.loc[df["flow_ml_s"].idxmax(), "time_s"]
+q_avg = total_volume / total_duration
+
 # === GENERATE 2-PAGE PDF ===
 pdf_path = "uroflow_report_two_pages.pdf"
 with PdfPages(pdf_path) as pdf:
@@ -54,7 +61,7 @@ with PdfPages(pdf_path) as pdf:
     fig1, ax1 = plt.subplots(figsize=(11.69, 8.27))
     ax1.plot(df["time_s"], df["weight_g"], label="Voided volume", color="green", linewidth=2)
     ax1b = ax1.twinx()
-    ax1b.plot(df["time_s"], df["flow_ml_s"], label="Urine flow", color="blue", alpha=0.4)
+    ax1b.plot(df["time_s"], df["flow_ml_s"], label="Urine flow (smoothed)", color="blue", alpha=0.6)
     ax1b.axvline(time_qmax, color="red", linestyle="--", label="T@Qmax")
     ax1b.axhline(q_max, color="red", linestyle="--")
     ax1b.text(time_qmax, q_max + 1, f"Qmax = {q_max:.1f} mL/s", color="red", fontsize=8)
@@ -84,6 +91,8 @@ with PdfPages(pdf_path) as pdf:
 Measured parameters:
 - Total voided volume: {total_volume:.1f} mL
 - Total duration: {total_duration:.1f} s
+- Emptying time: {emptying_time:.1f} s
+- Active flow time: {active_flow_time:.1f} s
 - Qmax: {q_max:.1f} mL/s (at {time_qmax:.1f} s)
 - Qavg: {q_avg:.1f} mL/s
 - Number of interruptions: {len(pauses)}
