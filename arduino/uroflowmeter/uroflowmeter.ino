@@ -41,7 +41,7 @@ void setup() {
   // Initialize the LCD
   lcd.begin(LCD_COLS, LCD_ROWS);
 
-  Serial.begin(38400);
+  Serial.begin(115200);
   Serial.println("HX711 Demo");
 
   Serial.println("Initializing the scale");
@@ -188,5 +188,5 @@ void stop() {
 void read() {
   Serial.print(millis() - startTimer);
   Serial.print("|");
-  Serial.println(scale.get_units(), 1);
+  Serial.println(scale.get_units(), 2);
 }
