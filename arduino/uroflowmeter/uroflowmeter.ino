@@ -1,18 +1,9 @@
-/**
- *
- * HX711 library for Arduino - example file
- * https://github.com/bogde/HX711
- *
- * MIT License
- * (c) 2018 Bogdan Necula
- *
-**/
 #include "HX711.h"
 #include <Wire.h>
-#include <hd44780.h>                       // main hd44780 header
-#include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
+#include <hd44780.h>
+#include <hd44780ioClass/hd44780_I2Cexp.h>
 
-// HX711 circuit wiring
+// HX711 scale
 #define LOADCELL_DOUT_PIN 6
 #define LOADCELL_SCK_PIN 7
 
@@ -139,30 +130,41 @@ void loop() {
 
 void tare() {
   Serial.println("Taring scale...");
+
   lcd.clear();
   lcd.print("Taring scale...");
+
   scale.power_up();
   scale.tare();
   delay(500);
   scale.power_down();
+
   currentState = STATE_IDLE;
+
   Serial.println("Scale tared.");
+
   lcd.clear();
   lcd.print("Scale tared.");
+
   delay(1000);
+
   lcd.clear();
   lcd.print("Ready.");
 }
 
 void start() {
   Serial.println("Starting...");
+
   lcd.clear();
   lcd.print("Starting...");
+
   scale.power_up();
   delay(500);
   startTimer = millis();
+
   Serial.println("Started.");
   Serial.println("BEGIN DATA");
+
   lcd.clear();
   lcd.print("Reading data");
 }
@@ -170,11 +172,15 @@ void start() {
 void stop() {
   Serial.println("END DATA");
   Serial.println("Stopping...");
+
   lcd.clear();
   lcd.print("Stopping...");
+
   scale.power_down();
   delay(500);
+
   Serial.println("Stopped.");
+
   lcd.clear();
   lcd.print("Ready.");
 }
@@ -183,10 +189,4 @@ void read() {
   Serial.print(millis() - startTimer);
   Serial.print("|");
   Serial.println(scale.get_units(), 1);
-}
-
-void printSerialLcd(const char *str) {
-  Serial.println(str);
-  lcd.clear();
-  lcd.print(str);
 }
